@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nlinker — 네이버 블로그 내부링크 자동화 도구</title>
+  <meta name="description" content="네이버 블로그 글 작성 중 관련 내부링크를 AI가 자동 추천. 중복 글 감지까지. 크롬 확장 프로그램으로 바로 사용하세요." />
+  <meta property="og:title" content="nlinker — 네이버 블로그 내부링크 자동화" />
+  <meta property="og:description" content="AI가 관련 글을 찾아 내부링크를 자동 추천합니다. 중복 글 감지 기능도 포함." />
+  <meta property="og:url" content="https://nlinker.com" />
+  <meta property="og:type" content="website" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #03C75A;
+      --green-dark: #02a84b;
+      --gray-50: #f8f9fa;
+      --gray-100: #f1f3f5;
+      --gray-200: #e9ecef;
+      --gray-400: #ced4da;
+      --gray-500: #adb5bd;
+      --gray-700: #495057;
+      --gray-900: #212529;
+    }
+
+    body {
+      font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif;
+      background: #fff;
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 0 24px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-size: 18px; font-weight: 800; color: var(--green); letter-spacing: -0.5px; }
+    .nav-cta {
+      background: var(--green); color: #fff;
+      padding: 8px 18px; border-radius: 8px;
+      font-size: 13px; font-weight: 700;
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .nav-cta:hover { background: var(--green-dark); }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 80px 24px 64px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: #e6faf0; color: var(--green);
+      font-size: 12px; font-weight: 700;
+      padding: 4px 12px; border-radius: 20px;
+      margin-bottom: 20px;
+      letter-spacing: 0.3px;
+    }
+    .hero h1 {
+      font-size: clamp(26px, 5vw, 40px);
+      font-weight: 800;
+      line-height: 1.25;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+      color: var(--gray-900);
+    }
+    .hero h1 em { color: var(--green); font-style: normal; }
+    .hero p {
+      font-size: 16px; color: var(--gray-700);
+      margin-bottom: 36px; line-height: 1.7;
+    }
+    .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--green); color: #fff;
+      padding: 14px 28px; border-radius: 10px;
+      font-size: 15px; font-weight: 700;
+      text-decoration: none;
+      transition: background .15s, transform .1s;
+    }
+    .btn-primary:hover { background: var(--green-dark); transform: translateY(-1px); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #fff; color: var(--gray-700);
+      padding: 14px 28px; border-radius: 10px;
+      font-size: 15px; font-weight: 600;
+      border: 1.5px solid var(--gray-200);
+      text-decoration: none;
+      transition: border-color .15s;
+    }
+    .btn-secondary:hover { border-color: var(--green); color: var(--green); }
+
+    /* DEMO IMAGE */
+    .demo-wrap {
+      max-width: 720px; margin: 0 auto 80px;
+      padding: 0 24px;
+    }
+    .demo-img {
+      width: 100%; border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+      border: 1px solid var(--gray-200);
+    }
+
+    /* FEATURES */
+    .section { padding: 72px 24px; }
+    .section-inner { max-width: 960px; margin: 0 auto; }
+    .section-label {
+      text-align: center;
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 1.5px; color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      text-align: center;
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 800; letter-spacing: -0.5px;
+      margin-bottom: 48px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 14px;
+      padding: 28px;
+    }
+    .feature-icon {
+      font-size: 32px; margin-bottom: 14px;
+      display: block;
+    }
+    .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 14px; color: var(--gray-700); line-height: 1.65; }
+
+    /* HOW IT WORKS */
+    .steps { background: var(--gray-50); }
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 32px;
+      text-align: center;
+    }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px;
+      background: var(--green); color: #fff;
+      border-radius: 50%; font-size: 16px; font-weight: 800;
+      margin: 0 auto 14px;
+    }
+    .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .step p { font-size: 13px; color: var(--gray-700); }
+
+    /* PRICING */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      max-width: 920px; margin: 0 auto;
+      align-items: end;
+    }
+    .plan-card {
+      border: 1.5px solid var(--gray-200);
+      border-radius: 16px;
+      padding: 28px 20px 24px;
+      text-align: center;
+      background: #fff;
+      position: relative;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .plan-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+
+    .plan-card.tier-free  { border-color: var(--gray-200); }
+    .plan-card.tier-light { border-color: #a8d5ff; background: #f5faff; }
+    .plan-card.tier-basic { border-color: var(--green); background: #f0fdf6; transform: translateY(-8px); box-shadow: 0 8px 32px rgba(3,199,90,0.15); }
+    .plan-card.tier-basic:hover { transform: translateY(-12px); }
+    .plan-card.tier-pro   { border-color: #c4b5fd; background: #faf5ff; }
+
+    .plan-card.tier-basic::before {
+      content: '인기';
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: var(--green); color: #fff;
+      font-size: 11px; font-weight: 700;
+      padding: 4px 12px; border-radius: 20px;
+    }
+    .plan-dot {
+      width: 36px; height: 36px; border-radius: 50%;
+      margin: 0 auto 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .tier-free  .plan-dot { background: var(--gray-100); }
+    .tier-light .plan-dot { background: #dbeafe; }
+    .tier-basic .plan-dot { background: #dcfce7; }
+    .tier-pro   .plan-dot { background: #ede9fe; }
+
+    .plan-name { font-size: 12px; font-weight: 700; color: var(--gray-500); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.2px; }
+    .plan-price { font-size: 30px; font-weight: 800; color: var(--gray-900); line-height: 1; }
+    .plan-price span { font-size: 13px; font-weight: 400; color: var(--gray-500); }
+    .plan-limit { font-size: 13px; font-weight: 600; color: var(--gray-700); margin: 10px 0 6px; }
+    .plan-target { font-size: 12px; color: var(--gray-500); }
+    .plan-free-note { font-size: 12px; color: var(--gray-500); margin: 10px 0 6px; }
+    .plan-features {
+      list-style: none; text-align: left;
+      margin: 16px 0 0; padding: 0;
+      border-top: 1px solid var(--gray-200);
+      padding-top: 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .plan-features li {
+      font-size: 13px; color: var(--gray-700);
+      padding-left: 20px; position: relative;
+    }
+    .plan-features li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+    .plan-features li.no::before { content: '–'; color: var(--gray-400); }
+    .plan-features li.no { color: var(--gray-400); }
+    .plan-features li.highlight { color: #7c3aed; font-weight: 600; }
+    .plan-features li.highlight::before { content: '★'; color: #7c3aed; }
+
+    /* CTA */
+    .cta-section {
+      background: linear-gradient(135deg, #03C75A 0%, #02a84b 100%);
+      text-align: center;
+      padding: 72px 24px;
+      color: #fff;
+    }
+    .cta-section h2 { font-size: clamp(22px, 4vw, 32px); font-weight: 800; margin-bottom: 12px; }
+    .cta-section p { font-size: 15px; opacity: 0.9; margin-bottom: 32px; }
+    .btn-white {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #fff; color: var(--green);
+      padding: 14px 32px; border-radius: 10px;
+      font-size: 15px; font-weight: 700;
+      text-decoration: none;
+      transition: transform .1s;
+    }
+    .btn-white:hover { transform: translateY(-2px); }
+
+    /* FOOTER */
+    footer {
+      background: var(--gray-900); color: var(--gray-500);
+      padding: 40px 24px;
+      text-align: center;
+      font-size: 13px;
+    }
+    footer a { color: var(--gray-400); text-decoration: none; }
+    footer a:hover { color: #fff; }
+    .footer-links { display: flex; gap: 20px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
+
+    @media (max-width: 480px) {
+      .hero { padding: 56px 20px 48px; }
+      .hero-btns { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">nlinker</span>
+  <a href="https://chromewebstore.google.com/detail/egklhlnfledkidjeanfdhpodhnjcndbh" class="nav-cta">무료로 설치하기</a>
+</nav>
+
+<main>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">Chrome · Whale 지원</div>
+    <h1>네이버 블로그 내부링크,<br><em>AI가 자동으로 찾아드립니다</em></h1>
+    <p>글 작성 중 키워드만 입력하면 관련 기존 글을 즉시 추천.<br>중복 글 감지로 같은 주제를 두 번 쓰는 실수도 방지합니다.</p>
+    <div class="hero-btns">
+      <a href="https://chromewebstore.google.com/detail/egklhlnfledkidjeanfdhpodhnjcndbh" class="btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><circle cx="12" cy="12" r="4"/><path d="M12 8V2M12 22v-6M8 12H2M22 12h-6"/></svg>
+        크롬 웹스토어에서 설치
+      </a>
+      <a href="#features" class="btn-secondary">기능 살펴보기 ↓</a>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section" id="features">
+    <div class="section-inner">
+      <p class="section-label">Features</p>
+      <h2 class="section-title">SEO를 높이는 3가지 핵심 기능</h2>
+      <div class="features-grid">
+        <article class="feature-card">
+          <span class="feature-icon">🔗</span>
+          <h3>AI 내부링크 추천</h3>
+          <p>새 글의 주제를 입력하면 AI가 기존 글 전체를 분석해 관련도 높은 글을 최대 30개까지 추천합니다. 내부링크 SEO를 손쉽게 강화하세요.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">🔄</span>
+          <h3>중복 글 감지</h3>
+          <p>이미 비슷한 글을 쓴 적이 있는지 사전에 확인합니다. 유사도 점수와 함께 기존 글 목록을 보여줘 콘텐츠 분산을 방지합니다.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">⚡</span>
+          <h3>에디터 자동 감지</h3>
+          <p>네이버 블로그 에디터에서 제목을 입력하면 자동으로 검색이 시작됩니다. 별도 조작 없이 사이드패널에 결과가 바로 표시됩니다.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">📊</span>
+          <h3>관련순 · 최신순 정렬</h3>
+          <p>AI 관련도 기준 정렬과 최신 작성일 기준 정렬을 버튼 하나로 전환합니다. 상황에 맞는 글을 빠르게 찾을 수 있습니다.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">🏢</span>
+          <h3>멀티 블로그 관리 (Pro)</h3>
+          <p>최대 3개 네이버 블로그를 하나의 계정으로 관리합니다. 블로그 대행 업무에 최적화된 Pro 플랜 전용 기능입니다.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-icon">🔒</span>
+          <h3>브라우저 직접 수집</h3>
+          <p>블로그 글 목록은 내 브라우저에서 직접 수집합니다. 네이버 IP 차단 없이 안정적으로 동작하며, 서버에 글 내용을 저장하지 않습니다.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section steps">
+    <div class="section-inner">
+      <p class="section-label">How it works</p>
+      <h2 class="section-title">3단계로 바로 시작</h2>
+      <div class="steps-grid">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>확장 프로그램 설치</h3>
+          <p>크롬 웹스토어에서 nlinker를 설치합니다. 회원가입 없이 바로 사용 가능합니다.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>내 블로그 등록</h3>
+          <p>사이드패널에 블로그 ID를 입력하면 글 목록을 자동으로 수집합니다. (최초 1회)</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>글 쓰면서 바로 검색</h3>
+          <p>제목 입력 시 자동 검색, 또는 키워드를 직접 입력해 관련 글을 즉시 확인합니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="section" id="pricing">
+    <div class="section-inner">
+      <p class="section-label">Pricing</p>
+      <h2 class="section-title">합리적인 요금제</h2>
+      <div class="pricing-grid">
+        <div class="plan-card tier-free">
+          <div class="plan-dot">🆓</div>
+          <div class="plan-name">Free</div>
+          <div class="plan-price">0원</div>
+          <div class="plan-free-note">가입 불필요</div>
+          <ul class="plan-features">
+            <li>검색 30회/월</li>
+            <li>중복 감지 포함</li>
+            <li>링크 자동 삽입</li>
+            <li>블로그 1개 관리</li>
+          </ul>
+        </div>
+        <div class="plan-card tier-light">
+          <div class="plan-dot">✍️</div>
+          <div class="plan-name">Light</div>
+          <div class="plan-price">2,900<span>원/월</span></div>
+          <div class="plan-free-note">부업 블로거</div>
+          <ul class="plan-features">
+            <li>검색 200회/월</li>
+            <li>링크 자동 삽입</li>
+            <li>블로그 1개 관리</li>
+            <li>매월 자동 갱신</li>
+            <li class="no">중복 감지 미포함</li>
+          </ul>
+        </div>
+        <div class="plan-card tier-basic">
+          <div class="plan-dot">⭐</div>
+          <div class="plan-name">Basic</div>
+          <div class="plan-price">6,900<span>원/월</span></div>
+          <div class="plan-free-note">전업 블로거</div>
+          <ul class="plan-features">
+            <li>검색 500회/월</li>
+            <li>중복 감지 포함</li>
+            <li>링크 자동 삽입</li>
+            <li>블로그 1개 관리</li>
+            <li>매월 자동 갱신</li>
+          </ul>
+        </div>
+        <div class="plan-card tier-pro">
+          <div class="plan-dot">🏢</div>
+          <div class="plan-name">Pro</div>
+          <div class="plan-price">11,900<span>원/월</span></div>
+          <div class="plan-free-note">대행사/프리랜서 전용</div>
+          <ul class="plan-features">
+            <li>검색 1,000회/월</li>
+            <li>중복 감지 포함</li>
+            <li>링크 자동 삽입</li>
+            <li class="highlight">블로그 최대 3개 계정 전환</li>
+            <li class="highlight">고객사 블로그 한번에 관리</li>
+            <li>매월 자동 갱신</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <h2>지금 바로 무료로 시작하세요</h2>
+    <p>설치 후 30초면 내 블로그의 모든 글을 분석합니다.</p>
+    <a href="https://chromewebstore.google.com/detail/egklhlnfledkidjeanfdhpodhnjcndbh" class="btn-white">
+      크롬 웹스토어에서 무료 설치
+    </a>
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="/privacy.html">개인정보처리방침</a>
+    <a href="https://chromewebstore.google.com/detail/egklhlnfledkidjeanfdhpodhnjcndbh">크롬 웹스토어</a>
+    <a href="mailto:kang020672@gmail.com">문의</a>
+  </div>
+  <p>© 2026 nlinker. All rights reserved.</p>
+</footer>
+
+</body>
+</html>
