@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>N BlogCare AI - 네이버 블로그 도우미 — 업그레이드</title>
-  <script src="https://js.tosspayments.com/v1/payment"></script>
+  <script src="https://js.tosspayments.com/v1/payment" defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -142,6 +142,19 @@
   ⚙️ 결제 시스템 준비 중입니다. 곧 서비스될 예정이며, 현재 무료로 이용 가능합니다.
 </div>
 
+<div id="emailGate" style="background:white;border-radius:16px;padding:24px;max-width:400px;width:100%;margin-bottom:20px;display:none;">
+  <p style="font-size:13px;color:#495057;margin-bottom:12px;line-height:1.6;">📧 구독 전 이메일 인증이 필요합니다.<br>브라우저 초기화 시 구독 복구에 사용됩니다.</p>
+  <div style="display:flex;gap:6px;">
+    <input type="email" id="gateEmailInput" placeholder="이메일 주소 입력" style="flex:1;border:1px solid #dee2e6;border-radius:6px;padding:8px 10px;font-size:13px;" />
+    <button id="gateSendOtpBtn" style="background:#03C75A;color:white;border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">인증코드 발송</button>
+  </div>
+  <div id="gateOtpRow" style="display:none;gap:6px;margin-top:8px;">
+    <input type="text" id="gateOtpInput" placeholder="인증코드 6자리" maxlength="6" style="flex:1;border:1px solid #03C75A;border-radius:6px;padding:8px 10px;font-size:13px;letter-spacing:4px;text-align:center;" />
+    <button id="gateVerifyBtn" style="background:#03C75A;color:white;border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">확인</button>
+  </div>
+  <div id="gateMsg" style="font-size:12px;margin-top:8px;display:none;"></div>
+</div>
+
 <div id="mainContent"></div>
 <div class="error-msg" id="errorMsg"></div>
 
@@ -150,7 +163,7 @@
   <div style="font-size:13px;color:#495057;line-height:1.7;">
     고객사 블로그 여러 개를 동시에 관리하는 대행사 · 프리랜서라면<br>
     <strong>프로 플랜</strong>으로 계정 3개를 한 번에 전환하며 SEO 작업하세요.<br>
-    <span style="color:#03C75A;font-weight:700;">월 10,600원</span>으로 고객사 내부링크 최적화까지.
+    <span style="color:#03C75A;font-weight:700;">월 10,600원 = 커피 두 잔</span>으로 고객사 내부링크 최적화까지.
   </div>
 </div>
 
@@ -170,6 +183,13 @@
 
   const mainContent = document.getElementById('mainContent');
   const errorMsg = document.getElementById('errorMsg');
+  const emailGate = document.getElementById('emailGate');
+  const gateEmailInput = document.getElementById('gateEmailInput');
+  const gateSendOtpBtn = document.getElementById('gateSendOtpBtn');
+  const gateOtpRow = document.getElementById('gateOtpRow');
+  const gateOtpInput = document.getElementById('gateOtpInput');
+  const gateVerifyBtn = document.getElementById('gateVerifyBtn');
+  const gateMsg = document.getElementById('gateMsg');
 
   if (!sessionId) {
     mainContent.innerHTML = `
@@ -179,6 +199,68 @@
            블로그를 먼저 등록하신 후 이용해주세요.</p>
       </div>`;
   } else {
+    emailGate.style.display = 'block';
+
+    gateSendOtpBtn.addEventListener('click', async () => {
+      const email = gateEmailInput.value.trim();
+      if (!email || !email.includes('@')) return;
+      gateSendOtpBtn.disabled = true;
+      try {
+        const res = await fetch(`${BASE_URL}/api/register-email/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, email }),
+        });
+        gateMsg.style.display = 'block';
+        if (res.ok) {
+          gateMsg.style.color = '#1a6fa8';
+          gateMsg.textContent = '📧 인증코드를 이메일로 발송했습니다.';
+          gateOtpRow.style.display = 'flex';
+          gateOtpInput.focus();
+        } else {
+          gateMsg.style.color = '#c0392b';
+          gateMsg.textContent = '발송에 실패했습니다. 다시 시도해주세요.';
+        }
+      } catch (e) {
+        gateMsg.style.display = 'block';
+        gateMsg.style.color = '#c0392b';
+        gateMsg.textContent = '오류가 발생했습니다.';
+      } finally {
+        gateSendOtpBtn.disabled = false;
+      }
+    });
+
+    gateVerifyBtn.addEventListener('click', async () => {
+      const email = gateEmailInput.value.trim();
+      const code = gateOtpInput.value.trim();
+      if (!code) return;
+      gateVerifyBtn.disabled = true;
+      try {
+        const res = await fetch(`${BASE_URL}/api/register-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, email, code }),
+        });
+        if (res.ok) {
+          emailGate.innerHTML = `<p style="font-size:13px;color:#087f3d;font-weight:700;">✅ 이메일 인증 완료 — 이제 플랜을 선택해주세요.</p>`;
+          renderPlans();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          gateMsg.style.display = 'block';
+          gateMsg.style.color = '#c0392b';
+          gateMsg.textContent = err.detail || '인증코드가 올바르지 않습니다.';
+          gateVerifyBtn.disabled = false;
+        }
+      } catch (e) {
+        gateMsg.style.display = 'block';
+        gateMsg.style.color = '#c0392b';
+        gateMsg.textContent = '오류가 발생했습니다.';
+        gateVerifyBtn.disabled = false;
+      }
+    });
+  }
+
+  function renderPlans() {
     mainContent.innerHTML = `
       <div class="plans">
         <div class="plan-card">
@@ -192,7 +274,7 @@
             <li>매월 자동 갱신</li>
             <li class="limit">중복 감지 · 품질 진단 미포함</li>
           </ul>
-          <button class="pay-btn" data-plan="light">결제하기</button>
+          <button class="pay-btn" data-plan="light" disabled>준비 중</button>
         </div>
         <div class="plan-card recommended">
           <div class="rec-badge">추천</div>
@@ -206,7 +288,7 @@
             <li>블로그 1개 관리</li>
             <li>매월 자동 갱신</li>
           </ul>
-          <button class="pay-btn" data-plan="basic">결제하기</button>
+          <button class="pay-btn" data-plan="basic" disabled>준비 중</button>
         </div>
         <div class="plan-card">
           <div class="plan-name">프로</div>
@@ -220,7 +302,7 @@
             <li class="pro-only">고객사 블로그 한번에 관리</li>
             <li>매월 자동 갱신</li>
           </ul>
-          <button class="pay-btn" data-plan="pro">결제하기</button>
+          <button class="pay-btn" data-plan="pro" disabled>준비 중</button>
         </div>
       </div>`;
 
