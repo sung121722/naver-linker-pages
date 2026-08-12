@@ -202,6 +202,7 @@
       const email = gateEmailInput.value.trim();
       if (!email || !email.includes('@')) return;
       gateSendOtpBtn.disabled = true;
+      gateSendOtpBtn.textContent = '발송 중...';
       try {
         const res = await fetch(`${BASE_URL}/api/register-email/send-otp`, {
           method: 'POST',
@@ -224,6 +225,7 @@
         gateMsg.textContent = '오류가 발생했습니다.';
       } finally {
         gateSendOtpBtn.disabled = false;
+        gateSendOtpBtn.textContent = '인증코드 발송';
       }
     });
 
