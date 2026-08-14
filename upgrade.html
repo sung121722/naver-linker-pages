@@ -207,19 +207,26 @@
            블로그를 먼저 등록하신 후 이용해주세요.</p>
       </div>`;
   } else {
-    // 대부분의 재방문 세션은 이미 이메일 인증을 마친 상태라, 확인 응답을 기다리는 동안
-    // 빈 화면을 보여주는 대신 먼저 플랜 화면을 띄워둔다 — 인증이 안 된 세션으로 밝혀지면
-    // 그때 인증 화면으로 바꾼다(결제 자체는 서버가 이메일 인증 여부를 다시 검사하므로 안전).
-    renderPlans();
+    // 이메일 인증 여부를 확인하는 동안, 인증 안 된 사람에게 결제 화면을 먼저 보여주면 안 되고
+    // (혼란·신뢰도 문제) 빈 화면도 안 좋으니 중립적인 로딩 상태를 보여준다.
+    mainContent.innerHTML = `
+      <div class="no-session">
+        <p style="color:#868e96;">확인 중입니다...</p>
+      </div>`;
     fetch(`${BASE_URL}/api/plan/${encodeURIComponent(sessionId)}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (!data || !data.has_email) {
+        if (data && data.has_email) {
+          renderPlans();
+        } else {
           mainContent.innerHTML = '';
           emailGate.style.display = 'block';
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        mainContent.innerHTML = '';
+        emailGate.style.display = 'block';
+      });
 
     gateSendOtpBtn.addEventListener('click', async () => {
       const email = gateEmailInput.value.trim();
