@@ -207,7 +207,20 @@
            블로그를 먼저 등록하신 후 이용해주세요.</p>
       </div>`;
   } else {
-    emailGate.style.display = 'block';
+    // 이미 이메일 인증을 마친 세션이면 재방문 시마다 다시 인증받을 필요 없음 —
+    // 매번 새로 인증하게 하면 재방문 사용자에게 불필요한 마찰이 생긴다.
+    fetch(`${BASE_URL}/api/plan/${encodeURIComponent(sessionId)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && data.has_email) {
+          renderPlans();
+        } else {
+          emailGate.style.display = 'block';
+        }
+      })
+      .catch(() => {
+        emailGate.style.display = 'block';
+      });
 
     gateSendOtpBtn.addEventListener('click', async () => {
       const email = gateEmailInput.value.trim();
