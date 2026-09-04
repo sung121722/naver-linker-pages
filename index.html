@@ -171,9 +171,11 @@
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 16px;
       max-width: 920px; margin: 0 auto;
-      align-items: end;
+      align-items: stretch;
     }
     .plan-card {
+      display: flex;
+      flex-direction: column;
       border: 1.5px solid var(--gray-200);
       border-radius: 16px;
       padding: 28px 20px 24px;
